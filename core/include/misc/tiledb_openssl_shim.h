@@ -34,6 +34,9 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,6 +59,9 @@ int __attribute__((weak)) HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned 
 void __attribute__((weak)) HMAC_CTX_free(HMAC_CTX *ctx);
 
 // See md5.h
+#ifndef EVP_MAX_MD_SIZE
+#define EVP_MAX_MD_SIZE 64
+#endif
 #define MD5_LONG unsigned int
 #define MD5_CBLOCK 64
 #define MD5_LBLOCK (MD5_CBLOCK / 4)

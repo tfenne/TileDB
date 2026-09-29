@@ -26,14 +26,15 @@
 # THE SOFTWARE.
 #
 
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.22)
 
 project(TileDB)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
-# Update git submodules
+# Update TileDB's own git submodules. This directory, not CMAKE_SOURCE_DIR, which
+# is the parent project when TileDB is added as a subdirectory
 execute_process(COMMAND git submodule update --recursive --init
-		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 		RESULT_VARIABLE submodule_update_exit_code)
 if(NOT(submodule_update_exit_code EQUAL 0))
   message(FATAL_ERROR "Failure to recursively update git submodules")
@@ -46,13 +47,18 @@ set(HDFS_SOURCE_DIR "deps/HDFSWrapper/hadoop-hdfs-native" CACHE PATH "Path to mo
 set(AZURE_FSCLIENT_SOURCE_DIR "deps/azure-storage-cpplite" CACHE PATH "Path to modified azure cpp client")
 set(MUPARSERX_SOURCE_DIR "deps/muparserx" CACHE PATH "Path to muparserx source")
 
-set(AWSSDK_VERSION "1.8.x" CACHE STRING "Version to aws sdk")
-set(AWSSDK_ROOT_DIR "$ENV{HOME}/awssdk-install/${AWSSDK_VERSION}" CACHE PATH "Path to aws sdk")
+# The SDKs are built in TILEDB_DEPS_INSTALL_DIR unless their ROOT_DIRs point at existing
+# installs. A parent project can point it outside the build tree to share them between builds.
+set(TILEDB_DEPS_INSTALL_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "Directory the SDKs are built in when their ROOT_DIRs are not given")
+set(AWSSDK_VERSION "1.8.187" CACHE STRING "Version to aws sdk")
+set(AWSSDK_ROOT_DIR "${TILEDB_DEPS_INSTALL_DIR}/awssdk-install/${AWSSDK_VERSION}" CACHE PATH "Path to aws sdk")
 set(AWSSDK_URL "https://github.com/aws/aws-sdk-cpp/archive/${AWSSDK_VERSION}.zip" CACHE STRING "URL to aws-sdk-cpp github release")
+set(AWSSDK_URL_HASH "SHA256=7dfe63338631acfbfe31981924029bc359ba83fda2003a2af856facfc1b8242e" CACHE STRING "Hash of the aws-sdk-cpp download, or empty to skip the check")
 
 set(GCSSDK_VERSION "v1.24.0" CACHE STRING "Version to gcs sdk")
-set(GCSSDK_ROOT_DIR "$ENV{HOME}/gcssdk-install/${GCSSDK_VERSION}" CACHE PATH "Path to gcs sdk")
+set(GCSSDK_ROOT_DIR "${TILEDB_DEPS_INSTALL_DIR}/gcssdk-install/${GCSSDK_VERSION}" CACHE PATH "Path to gcs sdk")
 set(GCSSDK_URL "https://github.com/googleapis/google-cloud-cpp/archive/${GCSSDK_VERSION}.zip" CACHE STRING "URL to google-cloud-cpp github release")
+set(GCSSDK_URL_HASH "SHA256=37b840a14980d4b3bee55af039258f2c79132e5f5edfa13570899d201ffcf032" CACHE STRING "Hash of the google-cloud-cpp download, or empty to skip the check")
 
 # Set the following to true downstream when TileDB is added as a subdirectory 
 set(TILEDB_DISABLE_TESTS False CACHE BOOL "Disable TileDB Testing")
@@ -141,6 +147,9 @@ set(TILEDB_LIB_DEPENDENCIES ${TILEDB_LIB_DEPENDENCIES} ${CURL_LIBRARIES})
 # Build Azure cpp lite client added as a dependency
 include_directories(${AZURE_FSCLIENT_SOURCE_DIR}/include ${AZURE_FSCLIENT_SOURCE_DIR}/adls/include)
 add_subdirectory(${AZURE_FSCLIENT_SOURCE_DIR})
+# blob_client_wrapper_init() passes NULL as a std::string, which newer compilers
+# reject under the library's -Werror; TileDB never calls it
+target_compile_options(azure-storage-lite PRIVATE -Wno-error=nonnull)
 set(TILEDB_LIB_DEPENDENCIES ${TILEDB_LIB_DEPENDENCIES} azure-storage-adls)
 
 # Build AWS S3 client static libraries
@@ -199,12 +208,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 
+# char is signed on x86-64 and Apple arm64 but unsigned on other ARM targets.
+# TILEDB_EMPTY_CHAR (CHAR_MAX) marks missing char values on disk, so char is signed
+# everywhere to keep arrays interchangeable between platforms.
+add_compile_options(-fsigned-char)
+
 # Set compiler flags
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -g3 -gdwarf-3 -Wall")
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -fvisibility=hidden")
 set(CMAKE_CXX_FLAGS_COVERAGE "-DDEBUG -g3 -gdwarf-3 --coverage")
-if(APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override -Wno-vla-cxx-extension")
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
 endif()
