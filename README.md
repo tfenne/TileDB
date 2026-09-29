@@ -1,15 +1,11 @@
-# TileDB
+# TileDB for GenomicsDB: high-performance germline calling
 
-[![actions](https://github.com/OmicsDataAutomation/TileDB/workflows/build/badge.svg)](https://github.com/OmicsDataAutomation/TileDB/actions)
-[![codecov](https://codecov.io/gh/OmicsDataAutomation/TileDB/branch/master/graph/badge.svg)](https://codecov.io/gh/OmicsDataAutomation/TileDB)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+This is a fork of [datma-health/TileDB](https://github.com/datma-health/TileDB) (formerly OmicsDataAutomation/TileDB), the TileDB 0.x-derived storage engine that [GenomicsDB](https://github.com/GenomicsDB/GenomicsDB) builds as a submodule. It is not [TileDB-Inc/TileDB](https://github.com/TileDB-Inc/TileDB) (TileDB 2.x), which has a different API and on-disk format.
 
-The installation guide for TileDB can be found at this [Github
-Wiki](https://github.com/OmicsDataAutomation/TileDB/wiki).
+Its default branch, `high_performance_germline_calling`, is upstream `master` plus the few commits listed below, one per change. It is used by the branch of the same name in [tfenne/GenomicsDB](https://github.com/tfenne/GenomicsDB), which carries the GenomicsDB side of the joint-calling work in [tfenne/gatk](https://github.com/tfenne/gatk).
 
-This alternate implementation is based on the original fork from [Intel-HLS](https://github.com/Intel-HLS/TileDB/tree/genomicsdb_req) and is specifically optimized for [GenomicsDB](https://github.com/GenomicsDB/GenomicsDB) among other things.
+For TileDB itself (installation, tutorials, the C API), see the [upstream README](https://github.com/datma-health/TileDB/blob/master/README.md) and [wiki](https://github.com/datma-health/TileDB/wiki).
 
-Check out [TileDB tutorials](https://github.com/OmicsDataAutomation/TileDB/wiki/TileDB-Tutorials) -
- * [TileDB Mechanics](https://github.com/OmicsDataAutomation/TileDB/wiki/TileDB-Tutorials#tiledb-mechanics)
- * [TileDB C API](https://github.com/OmicsDataAutomation/TileDB/wiki/TileDB-Tutorials#tiledb-c-api)
- * [TileDB Examples](https://github.com/OmicsDataAutomation/TileDB/wiki/TileDB-Tutorials#examples)
+## Changes on this branch
+
+Each entry is one commit on top of upstream `master`, oldest first. None of them change the on-disk format, and arrays written with this branch and with upstream are interchangeable.
