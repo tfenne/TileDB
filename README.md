@@ -19,3 +19,10 @@ Three changes to how sparse reads fetch tiles, which together cut GATK GnarlyGen
 - **C API sanity checks are inline.** `sanity_check()` runs per attribute per cell through `tiledb_array_iterator_get_value()`; building its error message in the same function made every check an out-of-line call with a large stack frame. Error reporting now lives in a separate `noinline` function.
 
 Measured one after another on GnarlyGenotyper, 1,000 samples, chr20:60,001-16,000,000, LZ4-compressed workspace: held file descriptors 1,222 → 911 s (−25%), then `pread` 1,001 → 889 s (−11%, paired runs), then the inline checks, together with a GenomicsDB change, 859 → 828 s (−3.6%).
+
+### zstd compiled in
+
+- **zstd is built into TileDB instead of loaded at run time.** Upstream loads `libzstd.so.1` with `dlopen` the first time a zstd codec is created, and throws if it isn't found; through GenomicsDB's JNI layer that surfaced as an abort of the JVM on machines without libzstd. TileDB now compiles zstd 1.5.7 (downloaded at configure time, checked against its SHA-256) into its own objects, the way it already builds LZ4. zstd's symbols are hidden, so they neither clash with nor bind to another zstd in the same process.
+- **The decompression context is freed with `ZSTD_freeDCtx`.** Each thread's decompression context was freed with `ZSTD_freeCCtx` when the thread exited. The codec now uses zstd's typed contexts, so the mismatch no longer compiles.
+
+Tiles are compressed by zstd 1.5.7 whatever the system has installed. Another zstd version can compress the same tile to different bytes, and each reads the other's output.
