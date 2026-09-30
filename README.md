@@ -45,3 +45,8 @@ TileDB and the SDKs it builds (AWS SDK 1.8, google-cloud-cpp 1.24, azure-storage
 - **The array iterator no longer copies its attribute list on every step.** `ArrayIterator::next()` runs once per cell, and it copied the array's attribute-id vector each time: an allocation and a free per cell. It now takes a reference.
 
 Measured together with three GenomicsDB changes to its per-cell and per-record work, on GnarlyGenotyper, 1,000 samples, chr20:1-16,000,000: 475.0 → 428.2 s (−9.9%).
+
+### SDKs built against TileDB's OpenSSL and libcurl
+
+- **The AWS SDK and google-cloud-cpp are built against the OpenSSL and libcurl that TileDB found,** including static libraries outside the default search paths, instead of whatever their own lookups find. A parent project can then link TileDB into a library that carries its own static OpenSSL and libcurl, as tfenne/GenomicsDB's distributable build does, which depends at run time only on glibc and zlib.
+- **libcurl and OpenSSL follow the SDKs on the link line.** The SDKs' static libraries use them, so with static libcurl and OpenSSL, an order-sensitive linker such as GNU ld could leave SDK references to OpenSSL unresolved.
