@@ -39,3 +39,9 @@ TileDB and the SDKs it builds (AWS SDK 1.8, google-cloud-cpp 1.24, azure-storage
 - **Reproducible downloads.** Every SDK download is pinned and checked against its SHA-256. The AWS SDK is 1.8.187, the release the previously downloaded `1.8.x` branch points to.
 - **No builds in `$HOME`.** The SDKs are built in `TILEDB_DEPS_INSTALL_DIR`, the build tree by default, unless `AWSSDK_ROOT_DIR`/`GCSSDK_ROOT_DIR` point at existing installs, instead of `$HOME/awssdk-install` and `$HOME/gcssdk-install`. A parent project can point `TILEDB_DEPS_INSTALL_DIR` elsewhere to share the SDK builds between build trees.
 - **Subproject-safe configure.** Configuring TileDB updates only its own submodules; as a subproject it used to reset every submodule of the parent project. On macOS the libuuid lookup no longer picks up `Kernel.framework`, whose headers shadowed the SDK's C headers. `TILEDB_DISABLE_TESTS` no longer breaks configuring the examples.
+
+### Cheaper iterator steps
+
+- **The array iterator no longer copies its attribute list on every step.** `ArrayIterator::next()` runs once per cell, and it copied the array's attribute-id vector each time: an allocation and a free per cell. It now takes a reference.
+
+Measured together with three GenomicsDB changes to its per-cell and per-record work, on GnarlyGenotyper, 1,000 samples, chr20:1-16,000,000: 475.0 → 428.2 s (−9.9%).
