@@ -50,3 +50,7 @@ Measured together with three GenomicsDB changes to its per-cell and per-record w
 
 - **The AWS SDK and google-cloud-cpp are built against the OpenSSL and libcurl that TileDB found,** including static libraries outside the default search paths, instead of whatever their own lookups find. A parent project can then link TileDB into a library that carries its own static OpenSSL and libcurl, as tfenne/GenomicsDB's distributable build does, which depends at run time only on glibc and zlib.
 - **libcurl and OpenSSL follow the SDKs on the link line.** The SDKs' static libraries use them, so with static libcurl and OpenSSL, an order-sensitive linker such as GNU ld could leave SDK references to OpenSSL unresolved.
+
+### Failed whole-file reads
+
+- **`read_entire_file` frees the buffer it allocated when a read fails.** It freed the caller's pointer variable instead, which is undefined behaviour and typically a crash, and left the caller holding the buffer, which GenomicsDB's callers then freed themselves. It now frees the buffer and sets the caller's pointer to `NULL`.
