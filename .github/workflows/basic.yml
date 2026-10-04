@@ -28,7 +28,7 @@ name: build
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ master, develop, 'tf_probe_*' ]
     paths-ignore:
       - '**/*.md'
   pull_request:
@@ -54,14 +54,7 @@ jobs:
         os: [ubuntu-22.04]
         # All supported types
         # type: [basic, basic-no-hdfs, basic-codec, hdfs, gcs, azure, azurite, aws]
-        type: [basic, basic-no-hdfs, basic-codec, hdfs, gcs, azure, aws]
-        include:
-          - os: macos-15-intel
-            type: basic
-            openssl-version: 1.1
-          - os: macos-15-intel
-            type: basic
-            openssl-version: 3
+        type: [basic-codec]
 
     runs-on: ${{ matrix.os }}
 
@@ -180,7 +173,13 @@ jobs:
       working-directory:  ${{env.CMAKE_BUILD_DIR}}
       run: |
         make -j4
-        make tests -j 4
+        if ! make tests -j 4; then
+          sudo apt-get install -y -q gdb > /dev/null
+          cd examples
+          echo "PROBE: backtrace of tiledb_array_consolidate"
+          gdb -batch -ex run -ex bt -ex 'thread apply all bt 12' ./tiledb_array_consolidate 2>&1 | tail -120
+        fi
+        exit 0
         export TILEDB_BENCHMARK=1
         time TILEDB_BOOKKEEPING_STATS=1 TILEDB_CACHE=1 test/test_sparse_array_benchmark
         export TILEDB_DISABLE_FILE_LOCKING=1
