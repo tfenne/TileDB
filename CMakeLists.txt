@@ -110,17 +110,23 @@ set(TILEDB_LIB_DEPENDENCIES ${TILEDB_LIB_DEPENDENCIES} ${LIBUUID_LIBRARY})
 # include_directories(${LZ4_INCLUDE_DIR})
 # set(TILEDB_LIB_DEPENDENCIES ${TILEDB_LIB_DEPENDENCIES} ${LZ4_LIBRARIES})
 
-# Blosc and ZStd are dynamically loaded, so no need to perform find_package
+# Blosc is dynamically loaded, so no need to perform find_package
 if(ENABLE_BLOSC)
     # find_package(BLOSC REQUIRED)
     # include_directories(${BLOSC_INCLUDE_DIR})
     # set(TILEDB_LIB_DEPENDENCIES ${TILEDB_LIB_DEPENDENCIES} ${BLOSC_LIBRARIES})
     add_definitions(-DENABLE_BLOSC)
 endif()
+# ZStd is compiled into TileDB from a pinned release (see core/CMakeLists.txt),
+# so TileDB never depends on a libzstd being installed at run time
 if(ENABLE_ZSTD)
-    # find_package(ZSTD REQUIRED)
-    # include_directories(${ZSTD_INCLUDE_DIR})
-    # set(TILEDB_LIB_DEPENDENCIES ${TILEDB_LIB_DEPENDENCIES} ${ZSTD_LIBRARIES})
+    include(FetchContent)
+    FetchContent_Declare(zstd
+        URL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+        URL_HASH SHA256=eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3)
+    # The release has no top-level CMakeLists.txt, so this only downloads the source
+    FetchContent_MakeAvailable(zstd)
+    set(ZSTD_LIB_DIR "${zstd_SOURCE_DIR}/lib")
     add_definitions(-DENABLE_ZSTD)
 endif()
 
@@ -193,6 +199,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 
+# char is signed on x86-64 and Apple arm64 but unsigned on other ARM targets.
+# TILEDB_EMPTY_CHAR (CHAR_MAX) marks missing char values on disk, so char is signed
+# everywhere to keep arrays interchangeable between platforms.
+add_compile_options(-fsigned-char)
+
 # Set compiler flags
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -g3 -gdwarf-3 -Wall")
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -fvisibility=hidden")
@@ -256,6 +267,9 @@ endif()
 
 # Build TileDB library
 add_subdirectory(core)
+# Code that includes TileDB's headers must agree with it on TILEDB_EMPTY_CHAR
+target_compile_options(tiledb_static INTERFACE -fsigned-char)
+target_compile_options(tiledb_shared INTERFACE -fsigned-char)
 
 # Enable testing
 if(NOT TILEDB_DISABLE_TESTS)
